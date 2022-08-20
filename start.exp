@@ -1,0 +1,66 @@
+#!/usr/bin/expect --
+
+set timeout -1
+
+exec echo [pid] | sudo tee /run/zomboid
+
+set dirname [file normalize [file dirname $argv0]]
+
+set zomboid_path "zomboid"
+
+proc resolve {args} {
+	return [file normalize [file join $::dirname {*}$args]]
+}
+
+exec [resolve "steamcmd.sh"] +force_install_dir [resolve $zomboid_path] +runscript [resolve "update_server.scmd"] >@stdout
+
+spawn [resolve $zomboid_path "start-server.sh"] {*}$argv
+
+variable empty 0
+
+proc is_empty {} {
+	global empty
+	send "players\r"
+	vwait empty
+	return $empty
+}
+
+proc shutdown {} {
+	expect_background
+	send "quit\r"
+	expect eof
+}
+
+expect -ex "*** SERVER STARTED ****"
+# set notifycmd [list sudo systemd-notify --pid=[pid] --ready]
+# puts $notifycmd
+# exec {*}$notifycmd
+
+expect_background {
+	"Connected new client" {set ::empty 0}
+	"Finally disconnected client" {send "players\r"}
+	"Players connected (0)" {set ::empty 1}
+	"Players connected" {set ::empty 0}
+}
+
+trap {shutdown; exit} SIGINT
+
+while {1} {
+	puts "looping"
+	interact {
+		\x03 {shutdown; exit}
+		timeout 300 return
+		-o eof break
+	}
+	if ([is_empty]) {
+		interact {
+			\x03 {shutdown; exit}
+			-nobuffer -re "." {continue}
+			timeout 300 return
+			-o eof break
+		}
+		if {[is_empty]} {
+			shutdown
+		}
+	}
+}
