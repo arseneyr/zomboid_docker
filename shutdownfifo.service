@@ -1,0 +1,8 @@
+[Service]
+ExecStart=/usr/local/libexec/shutdownfifo-listener
+
+[Unit]
+Before=docker.service
+
+[Install]
+WantedBy=docker.service

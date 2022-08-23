@@ -14,50 +14,47 @@ exec [resolve "steamcmd.sh"] +force_install_dir [resolve $zomboid_path] +runscri
 
 spawn [resolve $zomboid_path "start-server.sh"] {*}$argv
 
-variable empty 0
-
 proc is_empty {} {
-	global empty
 	send "players\r"
-	vwait empty
-	return $empty
+	expect {
+		"Players connected (0)" {return 1}
+		"Players connected" {return 0}
+	}
 }
 
-proc shutdown {} {
-	expect_background
+proc quit_game {} {
 	send "quit\r"
 	expect eof
 }
 
-expect -ex "*** SERVER STARTED ****"
-# set notifycmd [list sudo systemd-notify --pid=[pid] --ready]
-# puts $notifycmd
-# exec {*}$notifycmd
-
-expect_background {
-	"Connected new client" {set ::empty 0}
-	"Finally disconnected client" {send "players\r"}
-	"Players connected (0)" {set ::empty 1}
-	"Players connected" {set ::empty 0}
+proc shutdown {} {
+	if { [info exists ::env(SHUTDOWN_FIFO)] && ![catch {open $::env(SHUTDOWN_FIFO) {WRONLY NONBLOCK}} fifo]} {
+		puts $fifo "quit" 
+		close $fifo
+	}
 }
 
-trap {shutdown; exit} {SIGINT SIGTERM}
+expect -ex "*** SERVER STARTED ****"
+
+trap {quit_game; exit} {SIGINT SIGTERM}
 
 while {1} {
 	puts "looping"
 	interact {
-		\x03 {shutdown; exit}
+		\x03 {quit_game; exit}
 		timeout 300 return
-		-o eof break
+		-o -nobuffer "Client connecting" continue
+		-nobuffer "Finally disconnected client" return
 	}
 	if ([is_empty]) {
 		interact {
-			\x03 {shutdown; exit}
-			-nobuffer -re "." {continue}
+			\x03 {quit_game; exit}
+			-nobuffer -re "." continue
 			timeout 300 return
-			-o eof break
+			-o -nobuffer "Client connecting" continue
 		}
 		if {[is_empty]} {
+			quit_game
 			shutdown
 			exit
 		}
