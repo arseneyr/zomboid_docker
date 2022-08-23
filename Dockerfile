@@ -6,7 +6,10 @@ RUN apt-get update && apt-get install -y \
 	lib32gcc-s1 \
   && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd -r steam && useradd --no-log-init -r -m -g steam steam
+ARG UID=1000
+ARG GID=1000
+
+RUN groupadd -g $GID -r steam && useradd --no-log-init -r -u $UID -m -g steam steam
 
 USER steam
 
@@ -16,6 +19,9 @@ RUN curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.t
 
 COPY update_server.scmd .
 COPY start.exp .
-RUN ./steamcmd.sh +force_install_dir ./zomboid +runscript update_server.scmd
+# RUN ./steamcmd.sh +force_install_dir ./zomboid +runscript update_server.scmd
 
-ENTRYPOINT ["start.exp"]
+EXPOSE 16261/udp
+EXPOSE 8766/udp
+
+ENTRYPOINT ["./start.exp"]
