@@ -2,8 +2,6 @@
 
 set timeout -1
 
-exec echo [pid] | sudo tee /run/zomboid
-
 set dirname [file normalize [file dirname $argv0]]
 
 set zomboid_path "zomboid"
@@ -43,7 +41,7 @@ expect_background {
 	"Players connected" {set ::empty 0}
 }
 
-trap {shutdown; exit} SIGINT
+trap {shutdown; exit} {SIGINT SIGTERM}
 
 while {1} {
 	puts "looping"
@@ -61,6 +59,7 @@ while {1} {
 		}
 		if {[is_empty]} {
 			shutdown
+			exit
 		}
 	}
 }
