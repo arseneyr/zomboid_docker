@@ -1,8 +1,10 @@
 [Service]
 ExecStart=/usr/local/libexec/shutdownfifo-listener
+StandardInput=socket
+StandardOutput=journal
 
 [Unit]
 Before=docker.service
 
 [Install]
-WantedBy=docker.service
+Also=shutdownfifo.socket

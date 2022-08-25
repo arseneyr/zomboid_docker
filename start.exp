@@ -6,6 +6,8 @@ set dirname [file normalize [file dirname $argv0]]
 
 set zomboid_path "zomboid"
 
+set logged_in 0
+
 proc resolve {args} {
 	return [file normalize [file join $::dirname {*}$args]]
 }
@@ -19,17 +21,18 @@ proc is_empty {} {
 	expect {
 		"Players connected (0)" {return 1}
 		"Players connected" {return 0}
+		-timeout 2 timeout {return 0}
 	}
 }
 
 proc quit_game {} {
-	send "quit\r"
+		send "quit\r"
 	expect eof
 }
 
 proc shutdown {} {
 	if { [info exists ::env(SHUTDOWN_FIFO)] && ![catch {open $::env(SHUTDOWN_FIFO) {WRONLY NONBLOCK}} fifo]} {
-		puts $fifo "quit" 
+		puts $fifo [expr {$::logged_in ? "snap" : "quit"}]
 		close $fifo
 	}
 }
@@ -43,15 +46,15 @@ while {1} {
 	interact {
 		\x03 {quit_game; exit}
 		timeout 300 return
-		-o -nobuffer "Client connecting" continue
+		-o -nobuffer "Client connecting" {set logged_in 1; continue}
 		-nobuffer "Finally disconnected client" return
 	}
-	if ([is_empty]) {
+	if { [is_empty] } {
 		interact {
 			\x03 {quit_game; exit}
 			-nobuffer -re "." continue
 			timeout 300 return
-			-o -nobuffer "Client connecting" continue
+			-o -nobuffer "Client connecting" {set logged_in 1; continue}
 		}
 		if {[is_empty]} {
 			quit_game

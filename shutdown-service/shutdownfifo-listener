@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+while true
+do
+	if read line && [[ "$line" == "quit" || "$line" == "snap" ]]; then
+		shutdown now
+		exit
+	fi
+done

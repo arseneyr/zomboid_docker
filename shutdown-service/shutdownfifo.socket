@@ -1,0 +1,10 @@
+[Unit]
+Before=docker.service
+
+[Socket]
+ListenFIFO=/run/shutdown-fifo
+ExecStartPre=/usr/bin/rm -rf /run/shutdown-fifo
+ExecStartPost=/usr/bin/setfacl -m u::r,u:1000:w,g::-,o::- /run/shutdown-fifo
+
+[Install]
+WantedBy=sockets.target
